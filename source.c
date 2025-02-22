@@ -1,18 +1,34 @@
 #include "header.h"
+#include "score.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <SDL/SDL.h>
+#include <SDL/SDL_image.h>  // Ajout pour la gestion des images
+#include <SDL/SDL_ttf.h> 
+#include <stdbool.h> 
+#include <time.h>
 
 SDL_Surface *screen = NULL, *background = NULL;
 TTF_Font *font = NULL;
 char playerName[20] = "";
 int running = 1;
 
+// Initialisation des scores
+Playerscore topScores[3] = {
+    {"Player1", 95},
+    {"Player2", 88},
+    {"", 0}  // Le joueur entré sera ici
+};
+
+int scoreCount = 3; 
+bool showScores = false;
+
 // Bouton Valider uniquement
 Button btnValidate = {{100, 150, 75, 25}, NULL, NULL, 0}; // Taille réduite
 
 // Boîte blanche pour la saisie du nom
-SDL_Rect inputBox = {100, 50, 200, 40}; // Position et taille de la boîte
+SDL_Rect inputBox = {300, 200, 200, 40}; // Position et taille de la boîte
 SDL_Color boxColor = {255, 255, 255};   // Blanc
 SDL_Color textColor = {0, 0, 0};        // Noir (pour le texte)
 
@@ -51,7 +67,7 @@ void initSDL() {
         exit(1);
     }
 
-    font = TTF_OpenFont("Sunflare.ttf", 24);
+    font = TTF_OpenFont("Sunflare.ttf", 40);
     if (!font) {
         printf("Erreur TTF_OpenFont : %s\n", TTF_GetError());
         exit(1);
@@ -61,7 +77,7 @@ void initSDL() {
 
     background = loadImage("island.jpg");
     btnValidate.image = loadImage("validate.jpg");
-    btnValidate.hoverImage = loadImage("12.jpeg");
+    btnValidate.hoverImage = loadImage("12.jpg");
 
     if (!background || !btnValidate.image || !btnValidate.hoverImage) {
         printf("Erreur: Une ou plusieurs images n'ont pas été chargées correctement.\n");
@@ -69,8 +85,8 @@ void initSDL() {
     }
 
     // Position du bouton en bas à droite
-    btnValidate.rect.x = SCREEN_WIDTH - btnValidate.rect.w - 195;
-    btnValidate.rect.y = SCREEN_HEIGHT - btnValidate.rect.h - 20;
+    btnValidate.rect.x = SCREEN_WIDTH - btnValidate.rect.w - 95;
+    btnValidate.rect.y = SCREEN_HEIGHT - btnValidate.rect.h - 110;
 }
 
 // Affichage du texte
@@ -86,43 +102,94 @@ void renderText(const char *text, int x, int y) {
     SDL_FreeSurface(message);
 }
 
-// Affichage du menu
-void renderMenu() {
+void renderTopScores(SDL_Surface *screen, SDL_Surface *background, TTF_Font *font, Playerscore topScores[], int count) {
+    SDL_Color orange = {0, 0, 0}; // Couleur orange
+    SDL_Color white = {255, 255, 255}; // Couleur pour le titre
+
+    // Afficher l'arrière-plan
     SDL_BlitSurface(background, NULL, screen, NULL);
 
-    // Dessiner la boîte blanche
-    SDL_Surface *whiteBox = SDL_CreateRGBSurface(SDL_SWSURFACE, inputBox.w, inputBox.h, 32, 0, 0, 0, 0);
-    SDL_FillRect(whiteBox, NULL, SDL_MapRGB(screen->format, 255, 255, 255)); // Remplir en blanc
-    SDL_BlitSurface(whiteBox, NULL, screen, &inputBox);
-    SDL_FreeSurface(whiteBox);
-
-    // Afficher le texte du joueur dans la boîte
-    if (strlen(playerName) > 0) {
-        SDL_Surface *textSurface = TTF_RenderText_Blended(font, playerName, textColor);
-        SDL_Rect textPos = {inputBox.x + 5, inputBox.y + 10}; // Décalage pour éviter les bords
-        SDL_BlitSurface(textSurface, NULL, screen, &textPos);
-        SDL_FreeSurface(textSurface);
+    // Afficher le titre "Top Scores"
+    SDL_Rect titlePos = {screen->w / 2 - 50, 50}; // Centré horizontalement
+    SDL_Surface *titleSurface = TTF_RenderText_Blended(font, "Top Scores", white);
+    if (titleSurface) {
+        SDL_BlitSurface(titleSurface, NULL, screen, &titlePos);
+        SDL_FreeSurface(titleSurface);
     }
 
-    // Dessiner le bouton Valider
-    SDL_Rect destValidate = {
-        btnValidate.rect.x,
-        btnValidate.rect.y,
-        btnValidate.rect.w,
-        btnValidate.rect.h
-    };
+    // Position du premier score
+    SDL_Rect scorePos = {screen->w / 2 - 100, 100}; // Centré horizontalement
 
-    SDL_Surface *btnValidateImg = btnValidate.hovered ? btnValidate.hoverImage : btnValidate.image;
-    SDL_BlitSurface(btnValidateImg, NULL, screen, &destValidate);
+    for (int i = 0; i < count; i++) {
+        char scoreText[50];
+        sprintf(scoreText, "%d. %s - %d", i + 1, topScores[i].name, topScores[i].score);
+        SDL_Surface *textSurface = TTF_RenderText_Blended(font, scoreText, orange);
+        if (textSurface) {
+            SDL_BlitSurface(textSurface, NULL, screen, &scorePos);
+            SDL_FreeSurface(textSurface);
+        }
+        scorePos.y += 40; // Espacement entre les scores
+    }
+
+    SDL_Flip(screen); // Mettre à jour l'affichage
+}
+
+
+void renderMenu(Playerscore topScores[], int scoreCount) {
+    int count =3;
+     renderTopScores(screen,background,font,topScores,count);
+    SDL_BlitSurface(background, NULL, screen, NULL);
+
+    if (!showScores) {
+        // Dessiner la boîte blanche
+        SDL_Surface *whiteBox = SDL_CreateRGBSurface(SDL_SWSURFACE, inputBox.w, inputBox.h, 32, 0, 0, 0, 0);
+        SDL_FillRect(whiteBox, NULL, SDL_MapRGB(screen->format, 255, 255, 255)); // Remplir en blanc
+        SDL_BlitSurface(whiteBox, NULL, screen, &inputBox);
+        SDL_FreeSurface(whiteBox);
+
+        // Afficher le texte "Pseudo" à gauche de la boîte blanche
+        SDL_Surface *pseudoText = TTF_RenderText_Blended(font, "Pseudo:", textColor);
+        if (pseudoText) {
+            SDL_Rect pseudoPos = {inputBox.x - pseudoText->w - 10, inputBox.y + (inputBox.h - pseudoText->h) / 2}; // Aligné verticalement
+            SDL_BlitSurface(pseudoText, NULL, screen, &pseudoPos);
+            SDL_FreeSurface(pseudoText);
+        }
+
+        // Afficher le texte du joueur dans la boîte
+        if (strlen(playerName) > 0) {
+            SDL_Surface *textSurface = TTF_RenderText_Blended(font, playerName, textColor);
+            if (textSurface) {
+                SDL_Rect textPos = {inputBox.x + 5, inputBox.y + (inputBox.h - textSurface->h) / 2}; // Centré verticalement
+                SDL_BlitSurface(textSurface, NULL, screen, &textPos);
+                SDL_FreeSurface(textSurface);
+            }
+        }
+
+        // Dessiner le bouton Valider
+        SDL_Rect destValidate = {
+            btnValidate.rect.x,
+            btnValidate.rect.y,
+            btnValidate.rect.w,
+            btnValidate.rect.h
+        };
+
+        SDL_Surface *btnValidateImg = btnValidate.hovered ? btnValidate.hoverImage : btnValidate.image;
+        SDL_BlitSurface(btnValidateImg, NULL, screen, &destValidate);
+    } else {
+        // Afficher les meilleurs scores
+       renderTopScores(screen,background,font,topScores,count);
+    }
 
     SDL_Flip(screen);
 }
 
 // Gestion des entrées utilisateur
-void handleInput(SDL_Event event) {
+void handleInput(SDL_Event event, Playerscore topScores[], int scoreCount) {
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_RETURN) {
-            printf("Nom du joueur : %s\n", playerName);
+            printf("Nom du joueur validé : %s\n", playerName);
+            showScores = true; // Activer l'affichage des scores
+            renderMenu(topScores, scoreCount); // Rafraîchir l'écran avec les scores
         } else if (event.key.keysym.sym == SDLK_BACKSPACE && strlen(playerName) > 0) {
             playerName[strlen(playerName) - 1] = '\0'; // Efface un caractère
         } else {
@@ -143,9 +210,14 @@ void handleInput(SDL_Event event) {
     } else if (event.type == SDL_MOUSEBUTTONDOWN) {
         if (btnValidate.hovered) {
             printf("Nom du joueur validé : %s\n", playerName);
+	    strncpy(topScores[3].name,playerName,19);
+	    topScores[3].score=(rand()%100)+1;
+            showScores = true; // Activer l'affichage des scores
+            renderMenu(topScores, scoreCount); // Rafraîchir l'écran avec les scores
         }
     }
 }
+
 
 // Nettoyage des ressources
 void cleanUp() {
@@ -156,3 +228,5 @@ void cleanUp() {
     TTF_Quit();
     SDL_Quit();
 }
+
+
