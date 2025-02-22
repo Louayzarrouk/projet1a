@@ -1,50 +1,38 @@
-#ifndef MENU_H
-#define MENU_H
+#ifndef HEADER_H
+#define HEADER_H
 
 #include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
 #include <SDL/SDL_image.h>
+#include <SDL/SDL_ttf.h>
+#include "score.h"
 
-// Screen dimensions
-#define SCREEN_WIDTH 1083
-#define SCREEN_HEIGHT 500
-#define FONT_PATH "fonts/arial.ttf"
+// Dimensions de l'écran
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
-// Button Structure
+// Structure pour le bouton
 typedef struct {
     SDL_Rect rect;
     SDL_Surface *image;
     SDL_Surface *hoverImage;
     int hovered;
-} Button btnValidate;
+} Button;
 
-// Input Box Structure
-typedef struct {
-    SDL_Rect rect;
-    char text[50]; // Max characters that can be entered
-    int active;
-} InputBox;
-
-// Global Variables
-extern SDL_Surface *screen;
-extern SDL_Surface *background;
+// Déclaration des variables globales
+extern SDL_Surface *screen, *background;
 extern TTF_Font *font;
-extern int running;
-extern int showScores;
 extern char playerName[20];
-extern InputBox inputBox;
-
-// Buttons
+extern int running;
 extern Button btnValidate;
-extern Button btnRetour;
-extern Button btnQuitter;
+extern SDL_Rect inputBox;
+extern SDL_Color boxColor, textColor;
 
-// Function Declarations
-void initSDL();
-void cleanUp();
-void handleInput(SDL_Event event);
-void renderMenu();
-void renderText();
+// Fonctions
 SDL_Surface* loadImage(const char *filename);
+void initSDL();
+void renderText(const char *text, int x, int y);
+void renderMenu();
+void handleInput(SDL_Event event, Playerscore topScores[], int scoreCount);
+void cleanUp();
 
 #endif
